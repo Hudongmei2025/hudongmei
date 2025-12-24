@@ -1,14 +1,13 @@
-# app.py（修改：添加中文字体支持 - 方案A）
+# app.py（修改：全满显示100分版本）
 import streamlit as st
 import pandas as pd
 import matplotlib.pyplot as plt
 import numpy as np
 import joblib
 import os
-import matplotlib
 from matplotlib.colors import LinearSegmentedColormap
 
-# ==================== 全局配置 ====================
+# -------------------------- 全局配置 --------------------------
 st.set_page_config(
     page_title="学生成绩分析平台",
     page_icon="📊",
@@ -16,21 +15,21 @@ st.set_page_config(
     initial_sidebar_state="collapsed"
 )
 
-# ==================== 关键修改：全局中文字体设置 ====================
-# 设置matplotlib使用支持中文的字体
-matplotlib.rcParams['font.sans-serif'] = ['Microsoft YaHei', 'SimHei', 'DejaVu Sans', 'Arial Unicode MS', 'sans-serif']
+# 中文显示 - 增强配置
+import matplotlib
+matplotlib.rcParams['font.sans-serif'] = ['SimHei', 'Microsoft YaHei', 'Arial Unicode MS', 'DejaVu Sans']
 matplotlib.rcParams['axes.unicode_minus'] = False
 matplotlib.rcParams['figure.facecolor'] = 'white'
 matplotlib.rcParams['axes.grid'] = True
 matplotlib.rcParams['grid.alpha'] = 0.3
 
-# ==================== 路径配置 ====================
+# 路径配置 - 修改为相对路径
 PROCESSED_DATA_PATH = "processed_data.csv"
 MODEL_PATH = "optimized_score_model.pkl"
 IMAGE_FOLDER = "images"
 ZONG_IMAGE_PATH = "images/zong.png"
 
-# ==================== 数据加载 ====================
+# -------------------------- 数据加载 --------------------------
 @st.cache_data
 def load_data():
     try:
@@ -38,6 +37,7 @@ def load_data():
         if not os.path.exists(PROCESSED_DATA_PATH):
             st.warning(f"数据文件未找到: {PROCESSED_DATA_PATH}")
             st.info("正在生成模拟数据...")
+            # 生成模拟数据
             return generate_sample_data()
         
         df = pd.read_csv(PROCESSED_DATA_PATH, encoding='utf-8')
@@ -66,6 +66,7 @@ def load_data():
         st.info("正在生成模拟数据...")
         return generate_sample_data()
 
+# 添加模拟数据生成函数
 def generate_sample_data():
     np.random.seed(42)
     n = 200
@@ -89,12 +90,23 @@ def generate_sample_data():
         df['期中考试分数'] * 0.1
     ).clip(40, 100)
     
+    # 创建模拟模型
+    global model_package
+    model_package = {
+        'model': None,
+        'scaler': None,
+        'selected_features': ['上课出勤率', '每周学习时长（小时）', '期中考试分数', '作业完成率'],
+        'gender_map': {'男': 1, '女': 0},
+        'major_encoder': {'计算机科学': 0, '大数据管理': 1, '软件工程': 2, '人工智能': 3, '网络工程': 4},
+        'attendance_col': '上课出勤率'
+    }
+    
     return df, '上课出勤率'
 
 # 加载数据
 df, attendance_col = load_data()
 
-# ==================== 模型加载 ====================
+# -------------------------- 模型加载 --------------------------
 @st.cache_resource
 def load_model():
     try:
@@ -102,6 +114,7 @@ def load_model():
         return model_package
     except Exception as e:
         st.warning(f"模型加载错误：{str(e)}，使用模拟模型")
+        # 返回模拟模型
         return {
             'model': None,
             'scaler': None,
@@ -113,14 +126,14 @@ def load_model():
 
 model_package = load_model()
 
-# ==================== 导航菜单 ====================
+# -------------------------- 导航菜单 --------------------------
 st.sidebar.title("导航")
 page = st.sidebar.radio(
     "选择界面",
     ["项目介绍", "专业数据分析", "成绩预测"]
 )
 
-# ==================== 界面1：项目介绍 ====================
+# -------------------------- 界面1：项目介绍 --------------------------
 if page == "项目介绍":
     st.title("学生成绩分析与预测系统")
     
@@ -162,7 +175,7 @@ if page == "项目介绍":
     
     with col_image:
         st.subheader("📊 系统示意图")
-        # 检查图片路径
+        # 检查图片路径 - 修正为通用路径格式
         if os.path.exists(ZONG_IMAGE_PATH):
             st.image(ZONG_IMAGE_PATH, use_container_width=True)
         elif os.path.exists("images/zong.png"):
@@ -170,6 +183,7 @@ if page == "项目介绍":
         elif os.path.exists(os.path.join("images", "zong.png")):
             st.image(os.path.join("images", "zong.png"), use_container_width=True)
         else:
+            # 如果没有图片，显示占位符
             st.info("📊 系统示意图位置")
             st.markdown("**系统架构图**")
             st.markdown("""
@@ -194,50 +208,52 @@ if page == "项目介绍":
         st.markdown("### 机器学习")
         st.markdown("Scikit-learn")
 
-# ==================== 界面2：专业数据分析（关键修改部分） ====================
+# -------------------------- 界面2：专业数据分析 --------------------------
 elif page == "专业数据分析":
     st.title("专业数据分析")
     
-    # 各专业男女性别比例 - 图表1
+    # 各专业男女性别比例
     st.subheader("1. 各专业男女性别比例")
     col_chart1, col_table1 = st.columns([2, 1])
     with col_chart1:
         gender_count = df.groupby(['专业', '性别']).size().unstack(fill_value=0)
         gender_ratio = (gender_count.div(gender_count.sum(axis=1), axis=0) * 100).round(1)
-        
-        # ========== 关键修改点1：添加字体设置 ==========
         fig1, ax1 = plt.subplots(figsize=(10, 6))
-        # 确保此图表使用中文字体
-        plt.rcParams['font.sans-serif'] = matplotlib.rcParams['font.sans-serif']
-        plt.rcParams['axes.unicode_minus'] = matplotlib.rcParams['axes.unicode_minus']
-        # =============================================
+        
+        # 设置字体（关键修复）
+        plt.rcParams.update({
+            'font.sans-serif': 'SimHei',
+            'axes.unicode_minus': False
+        })
         
         ax1.set_ylim(0, 60)
         x = np.arange(len(gender_ratio.index))
         width = 0.35
+        ax1.bar(x - width/2, gender_ratio['男'], width, label='男生', color='#1f77b4', alpha=0.8)
+        ax1.bar(x + width/2, gender_ratio['女'], width, label='女生', color='#ffbbcc', alpha=0.8)
         
-        if '男' in gender_ratio.columns:
-            ax1.bar(x - width/2, gender_ratio['男'], width, label='男生', color='#1f77b4', alpha=0.8)
-        if '女' in gender_ratio.columns:
-            ax1.bar(x + width/2, gender_ratio['女'], width, label='女生', color='#ffbbcc', alpha=0.8)
-        
-        ax1.set_xlabel('专业', fontsize=12)
-        ax1.set_ylabel('比例（%）', fontsize=12)
-        ax1.set_title('各专业男女性别比例', fontsize=14)
+        # 显式设置字体 - 改为英文
+        ax1.set_xlabel('Major', fontsize=12, fontname='SimHei')
+        ax1.set_ylabel('Ratio (%)', fontsize=12, fontname='SimHei')
+        ax1.set_title('Gender Ratio by Major', fontsize=14, fontname='SimHei')
         ax1.set_xticks(x)
-        ax1.set_xticklabels(gender_ratio.index, rotation=45, ha='right')
-        ax1.legend()
+        
+        # 设置刻度标签字体
+        ax1.set_xticklabels(gender_ratio.index, rotation=45, ha='right', fontname='SimHei')
+        
+        # 设置图例字体
+        legend = ax1.legend()
+        for text in legend.get_texts():
+            text.set_fontname('SimHei')
         
         st.pyplot(fig1)
-        plt.close(fig1)
-        
     with col_table1:
         st.markdown("**性别比例（%）**")
         gender_table = gender_ratio.reset_index()
         gender_table.columns = ['major', '女', '男']
         st.dataframe(gender_table, use_container_width=True)
     
-    # 各专业学习指标对比 - 图表2
+    # 各专业学习指标对比
     st.subheader("2. 各专业学习指标对比")
     col_chart2, col_table2 = st.columns([2, 1])
     with col_chart2:
@@ -246,48 +262,47 @@ elif page == "专业数据分析":
             '期中考试分数': 'mean',
             '期末考试分数': 'mean'
         }).round(1)
-        
-        # ========== 关键修改点2：添加字体设置 ==========
         fig2, ax2_1 = plt.subplots(figsize=(10, 6))
-        # 确保此图表使用中文字体
-        plt.rcParams['font.sans-serif'] = matplotlib.rcParams['font.sans-serif']
-        plt.rcParams['axes.unicode_minus'] = matplotlib.rcParams['axes.unicode_minus']
-        # =============================================
+        
+        # 设置字体
+        plt.rcParams.update({
+            'font.sans-serif': 'SimHei',
+            'axes.unicode_minus': False
+        })
         
         x = np.arange(len(study_metrics.index))
         bars = ax2_1.bar(x, study_metrics['每周学习时长（小时）'], color='#1f77b4', alpha=0.8)
-        ax2_1.set_xlabel('专业', fontsize=12, color='#1f77b4')
-        ax2_1.set_ylabel('学习时间（小时）', fontsize=12, color='#1f77b4')
+        ax2_1.set_xlabel('Major', fontsize=12, fontname='SimHei', color='#1f77b4')
+        ax2_1.set_ylabel('Study Time (hours)', fontsize=12, fontname='SimHei', color='#1f77b4')
         ax2_1.tick_params(axis='y', labelcolor='#1f77b4')
-        
         ax2_2 = ax2_1.twinx()
         line1, = ax2_2.plot(x, study_metrics['期中考试分数'], marker='o', color='#ffaa00', linewidth=2)
         line2, = ax2_2.plot(x, study_metrics['期末考试分数'], marker='s', color='#2ca02c', linewidth=2)
-        ax2_2.set_ylabel('分数（分）', fontsize=12, color='#333')
+        ax2_2.set_ylabel('Score (points)', fontsize=12, fontname='SimHei', color='#333')
         ax2_2.tick_params(axis='y', labelcolor='#333')
         
-        ax2_1.legend([bars, line1, line2], 
-                    ['平均学习时间', '期中成绩', '期末成绩'],
+        # 设置图例字体
+        legend = ax2_1.legend([bars, line1, line2], 
+                    ['Average Study Time', 'Midterm Score', 'Final Score'],
                     loc='upper center', 
                     bbox_to_anchor=(0.5, 1.15),
                     ncol=3, 
                     fontsize=11,
                     frameon=False)
-        
-        ax2_1.set_title('各专业学习时间与成绩对比', fontsize=14)
+        for text in legend.get_texts():
+            text.set_fontname('SimHei')
+            
+        ax2_1.set_title('Study Time vs. Scores by Major', fontsize=14, fontname='SimHei')
         ax2_1.set_xticks(x)
-        ax2_1.set_xticklabels(study_metrics.index, rotation=45, ha='right')
-        
+        ax2_1.set_xticklabels(study_metrics.index, rotation=45, ha='right', fontname='SimHei')
         st.pyplot(fig2)
-        plt.close(fig2)
-        
     with col_table2:
         st.markdown("**学习指标详情**")
         study_table = study_metrics.reset_index()
         study_table.columns = ['专业', '平均学习时间（小时）', '期中平均分（分）', '期末平均分（分）']
         st.dataframe(study_table, use_container_width=True)
     
-    # 各专业出勤率分析 - 图表3
+    # 各专业出勤率分析
     st.subheader("3. 各专业出勤率分析")
     col_chart3, col_table3 = st.columns([2, 1])
     with col_chart3:
@@ -296,27 +311,28 @@ elif page == "专业数据分析":
         majors = attendance_percent.index.tolist()
         attendance_values = [int(value * 100) / 100.0 for value in attendance_percent]
         
-        # ========== 关键修改点3：添加字体设置 ==========
         fig3, (ax3_1, ax3_2) = plt.subplots(2, 1, figsize=(10, 6), gridspec_kw={'height_ratios': [10, 1]})
-        # 确保此图表使用中文字体
-        plt.rcParams['font.sans-serif'] = matplotlib.rcParams['font.sans-serif']
-        plt.rcParams['axes.unicode_minus'] = matplotlib.rcParams['axes.unicode_minus']
-        # =============================================
+        
+        # 设置字体
+        plt.rcParams.update({
+            'font.sans-serif': 'SimHei',
+            'axes.unicode_minus': False
+        })
         
         x_positions = range(len(majors))
         bars = ax3_1.bar(x_positions, attendance_values, color='#4CAF50', alpha=0.7, edgecolor='#2E7D32', width=0.6)
         ax3_1.set_ylim(0, 100)
-        ax3_1.set_xlabel('专业', fontsize=12)
-        ax3_1.set_ylabel('平均出勤率（%）', fontsize=12)
-        ax3_1.set_title('各专业平均出勤率', fontsize=14)
+        ax3_1.set_xlabel('Major', fontsize=12, fontname='SimHei')
+        ax3_1.set_ylabel('Average Attendance Rate (%)', fontsize=12, fontname='SimHei')
+        ax3_1.set_title('Average Attendance Rate by Major', fontsize=14, fontname='SimHei')
         ax3_1.set_xticks(x_positions)
-        ax3_1.set_xticklabels(majors, rotation=45, ha='right')
+        ax3_1.set_xticklabels(majors, rotation=45, ha='right', fontname='SimHei')
         ax3_1.grid(axis='y', alpha=0.3)
         
         for i, bar in enumerate(bars):
             height = bar.get_height()
             ax3_1.text(bar.get_x() + bar.get_width()/2, height + 0.5, f"{attendance_values[i]:.2f}%",
-                      ha='center', va='bottom', fontsize=9)
+                      ha='center', va='bottom', fontsize=9, fontname='SimHei')
         
         colors = ['#9C27B0', '#2196F3', '#4CAF50', '#FFC107']
         cmap = LinearSegmentedColormap.from_list('attendance_cmap', colors, N=100)
@@ -324,18 +340,16 @@ elif page == "专业数据分析":
         ax3_2.imshow(gradient_bar, aspect='auto', cmap=cmap, extent=[0, 100, 0, 1])
         ax3_2.set_xlim(0, 100)
         ax3_2.set_xticks([0, 20, 40, 60, 80, 100])
-        ax3_2.set_xticklabels(['0%', '20%', '40%', '60%', '80%', '100%'])
+        ax3_2.set_xticklabels(['0%', '20%', '40%', '60%', '80%', '100%'], fontname='SimHei')
         ax3_2.set_yticks([])
-        ax3_2.set_xlabel('出勤率值', fontsize=9)
-        ax3_2.set_title('出勤程度参考（紫=低，黄=高）', fontsize=10, pad=10)
+        ax3_2.set_xlabel('Attendance Rate Value', fontsize=9, fontname='SimHei')
+        ax3_2.set_title('Attendance Level Reference (Purple=Low, Yellow=High)', fontsize=10, pad=10, fontname='SimHei')
         ax3_2.spines['top'].set_visible(False)
         ax3_2.spines['right'].set_visible(False)
         ax3_2.spines['bottom'].set_visible(True)
         ax3_2.spines['left'].set_visible(False)
-        
         plt.tight_layout()
         st.pyplot(fig3)
-        plt.close(fig3)
     
     with col_table3:
         st.markdown("**专业出勤率排名**")
@@ -346,11 +360,12 @@ elif page == "专业数据分析":
         ranking_df = ranking_df[['排名', '专业', '平均出勤率']]
         st.dataframe(ranking_df, use_container_width=True)
     
-    # 大数据管理专业专项分析 - 图表4和5
+    # 大数据管理专业专项分析
     st.subheader("4. 大数据管理专业专项分析")
     bigdata_df = df[df['专业'] == '大数据管理'].dropna(subset=['期末考试分数'])
-    
-    if not bigdata_df.empty:
+    if bigdata_df.empty:
+        st.warning("未找到'大数据管理'专业数据")
+    else:
         col_metric1, col_metric2, col_metric3, col_metric4 = st.columns(4)
         avg_att = int(bigdata_df[attendance_col].mean() * 10000) / 100.0
         avg_final = bigdata_df['期末考试分数'].mean().round(1)
@@ -363,32 +378,33 @@ elif page == "专业数据分析":
         col_metric4.metric("平均学习时间", f"{avg_study}小时")
         
         col_chart4_1, col_chart4_2 = st.columns(2)
-        
         with col_chart4_1:
-            # ========== 关键修改点4：添加字体设置 ==========
             fig4_1, ax4_1 = plt.subplots(figsize=(8, 6))
-            # 确保此图表使用中文字体
-            plt.rcParams['font.sans-serif'] = matplotlib.rcParams['font.sans-serif']
-            plt.rcParams['axes.unicode_minus'] = matplotlib.rcParams['axes.unicode_minus']
-            # =============================================
+            
+            # 设置字体
+            plt.rcParams.update({
+                'font.sans-serif': 'SimHei',
+                'axes.unicode_minus': False
+            })
             
             bins = np.arange(60, 105, 5)
             ax4_1.hist(bigdata_df['期末考试分数'], bins=bins, color='#98FB98', alpha=0.7, edgecolor='#32CD32')
-            ax4_1.set_xlabel('期末成绩（分）', fontsize=12)
-            ax4_1.set_ylabel('人数', fontsize=12)
-            ax4_1.set_title('期末成绩分布图（60-100分）', fontsize=14)
+            ax4_1.set_xlabel('Final Score (points)', fontsize=12, fontname='SimHei')
+            ax4_1.set_ylabel('Number of Students', fontsize=12, fontname='SimHei')
+            ax4_1.set_title('Final Score Distribution (60-100 points)', fontsize=14, fontname='SimHei')
             ax4_1.set_xticks(bins)
+            ax4_1.set_xticklabels([str(int(b)) for b in bins], fontname='SimHei')
             ax4_1.grid(axis='y', alpha=0.3)
             st.pyplot(fig4_1)
-            plt.close(fig4_1)
         
         with col_chart4_2:
-            # ========== 关键修改点5：添加字体设置 ==========
             fig4_2, ax4_2 = plt.subplots(figsize=(8, 6))
-            # 确保此图表使用中文字体
-            plt.rcParams['font.sans-serif'] = matplotlib.rcParams['font.sans-serif']
-            plt.rcParams['axes.unicode_minus'] = matplotlib.rcParams['axes.unicode_minus']
-            # =============================================
+            
+            # 设置字体
+            plt.rcParams.update({
+                'font.sans-serif': 'SimHei',
+                'axes.unicode_minus': False
+            })
             
             box_data = bigdata_df['期末考试分数'].values
             boxplot = ax4_2.boxplot([box_data], labels=['大数据管理专业'], patch_artist=True,
@@ -409,16 +425,17 @@ elif page == "专业数据分析":
                 flier.set(marker='o', color='#FF6347', alpha=0.7, markersize=6)
             
             ax4_2.set_ylim(50, 100)
-            ax4_2.set_ylabel('期末成绩（分）', fontsize=12)
-            ax4_2.set_title('大数据管理专业期末成绩箱线图', fontsize=14)
-            ax4_2.grid(axis='y', alpha=0.3)
+            ax4_2.set_ylabel('Final Score (points)', fontsize=12, fontname='SimHei')
+            ax4_2.set_title('Big Data Management Final Score Box Plot', fontsize=14, fontname='SimHei')
             
+            # 设置x轴标签字体
+            ax4_2.set_xticklabels(['大数据管理专业'], fontname='SimHei')
+            
+            ax4_2.grid(axis='y', alpha=0.3)
+            plt.tight_layout()
             st.pyplot(fig4_2)
-            plt.close(fig4_2)
-    else:
-        st.warning("未找到'大数据管理'专业数据")
 
-# ==================== 界面3：成绩预测 ====================
+# -------------------------- 界面3：成绩预测（修改：全满显示100分） --------------------------
 elif page == "成绩预测":
     st.title("期末成绩预测")
     
@@ -510,10 +527,10 @@ elif page == "成绩预测":
             
             # 检查是否所有指标都达到最大值
             all_max = (
-                study_hours == 80.0 and
-                midterm_score == 100.0 and
-                attendance_rate == 100.000 and
-                homework_rate == 100.000
+                study_hours == 80.0 and  # 学习时长最大值
+                midterm_score == 100.0 and  # 期中分数最大值
+                attendance_rate == 100.000 and  # 出勤率最大值
+                homework_rate == 100.000  # 作业完成率最大值
             )
             
             if all_max:
@@ -541,7 +558,8 @@ elif page == "成绩预测":
                     # 预测
                     pred_score = model.predict(input_scaled)[0]
                     
-                    # 增强出勤率和作业完成率的影响
+                    # 增强出勤率和作业完成率的影响（提高灵敏度）
+                    # 出勤率每1%增加0.8分，作业完成率每1%增加0.6分
                     if attendance_col in input_data:
                         attendance_effect = (input_data[attendance_col] - 70) * 0.008
                         pred_score += attendance_effect
@@ -553,7 +571,7 @@ elif page == "成绩预测":
                     # 确保分数在合理范围内
                     pred_score = max(0.0, min(pred_score, 100.0))
             
-            # 截断到小数点后两位
+            # 截断到小数点后两位，不四舍五入
             pred_score = float(pred_score)
             pred_score = int(pred_score * 100) / 100.0
             
@@ -565,7 +583,7 @@ elif page == "成绩预测":
             st.session_state.midterm_score = midterm_score
             st.session_state.attendance_rate = attendance_rate
             st.session_state.homework_rate = homework_rate
-            st.session_state.all_max = all_max
+            st.session_state.all_max = all_max  # 保存是否全满的状态
             
         except Exception as e:
             st.error(f"❌ 预测错误：{str(e)}")
@@ -580,6 +598,7 @@ elif page == "成绩预测":
         # 显示预测成绩
         st.markdown("### 预测期末成绩")
         
+        # 使用Streamlit原生组件显示成绩
         if pred_score == 100.00:
             if all_max:
                 st.success(f"💯 满分：{pred_score:.2f} 分（所有指标达到最优）")
@@ -599,6 +618,7 @@ elif page == "成绩预测":
         # 显示当前学习指标
         st.markdown("### 📊 当前学习指标")
         
+        # 使用Streamlit原生列布局
         metric_cols = st.columns(4)
         with metric_cols[0]:
             st.metric("学习时长", f"{st.session_state.study_hours:.1f}h")
@@ -609,6 +629,7 @@ elif page == "成绩预测":
         with metric_cols[3]:
             st.metric("作业完成", f"{st.session_state.homework_rate:.3f}%")
         
+        # 显示是否达到最优的提示
         if all_max:
             st.success("🎉 太优秀啦！")
         
@@ -638,6 +659,7 @@ elif page == "成绩预测":
                 break
         
         if not image_found:
+            # 如果没有图片，显示文字评价
             if pred_score == 100.00:
                 st.success("🎯 完美表现！继续保持！")
             elif pred_score >= 85:
@@ -648,4 +670,5 @@ elif page == "成绩预测":
                 st.error("💪 不及格，请立即加强学习！")
     
     else:
+        # 首次进入页面时的提示
         st.info("👆 请填写学生信息并点击【预测期末成绩】按钮开始预测")
