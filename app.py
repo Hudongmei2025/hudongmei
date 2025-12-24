@@ -212,6 +212,18 @@ if page == "项目介绍":
 elif page == "专业数据分析":
     st.title("专业数据分析")
     
+    # 创建英文专业名称映射（仅用于图表显示）
+    major_mapping = {
+        '计算机科学': 'Computer Science',
+        '大数据管理': 'Big Data Management', 
+        '软件工程': 'Software Engineering',
+        '人工智能': 'Artificial Intelligence',
+        '网络工程': 'Network Engineering',
+        '工商管理': 'Business Administration',
+        '电子商务': 'E-commerce',
+        '财务管理': 'Financial Management'
+    }
+    
     # 各专业男女性别比例
     st.subheader("1. 各专业男女性别比例")
     col_chart1, col_table1 = st.columns([2, 1])
@@ -219,21 +231,12 @@ elif page == "专业数据分析":
         gender_count = df.groupby(['专业', '性别']).size().unstack(fill_value=0)
         gender_ratio = (gender_count.div(gender_count.sum(axis=1), axis=0) * 100).round(1)
         
-        # 创建英文专业名称映射
-        major_mapping = {
-            '计算机科学': 'Computer Science',
-            '大数据管理': 'Big Data Management',
-            '软件工程': 'Software Engineering',
-            '人工智能': 'Artificial Intelligence',
-            '网络工程': 'Network Engineering'
-        }
-        
-        # 获取英文专业名称
+        # 获取英文专业名称（仅用于图表）
         english_majors = [major_mapping.get(major, major) for major in gender_ratio.index]
         
         fig1, ax1 = plt.subplots(figsize=(10, 6))
         
-        # 设置字体（关键修复）
+        # 设置字体
         plt.rcParams.update({
             'font.sans-serif': 'SimHei',
             'axes.unicode_minus': False
@@ -246,24 +249,23 @@ elif page == "专业数据分析":
         ax1.bar(x + width/2, gender_ratio['女'], width, label='Female', color='#ffbbcc', alpha=0.8)
         
         # X轴改为英文
-        ax1.set_xlabel('Major', fontsize=12, fontname='SimHei')
-        ax1.set_ylabel('Ratio (%)', fontsize=12, fontname='SimHei')
-        ax1.set_title('Gender Ratio by Major', fontsize=14, fontname='SimHei')
+        ax1.set_xlabel('Major', fontsize=12)
+        ax1.set_ylabel('Ratio (%)', fontsize=12)
+        ax1.set_title('Gender Ratio by Major', fontsize=14)
         ax1.set_xticks(x)
         
         # 设置刻度标签为英文专业名称
-        ax1.set_xticklabels(english_majors, rotation=45, ha='right', fontname='SimHei')
+        ax1.set_xticklabels(english_majors, rotation=45, ha='right')
         
-        # 设置图例字体
+        # 设置图例
         legend = ax1.legend()
-        for text in legend.get_texts():
-            text.set_fontname('SimHei')
         
         st.pyplot(fig1)
     with col_table1:
         st.markdown("**性别比例（%）**")
         gender_table = gender_ratio.reset_index()
-        gender_table.columns = ['major', '女', '男']
+        gender_table.columns = ['专业', '女', '男']
+        # 表格保持中文
         st.dataframe(gender_table, use_container_width=True)
     
     # 各专业学习指标对比
@@ -276,7 +278,7 @@ elif page == "专业数据分析":
             '期末考试分数': 'mean'
         }).round(1)
         
-        # 获取英文专业名称
+        # 获取英文专业名称（仅用于图表）
         english_majors = [major_mapping.get(major, major) for major in study_metrics.index]
         
         fig2, ax2_1 = plt.subplots(figsize=(10, 6))
@@ -290,35 +292,34 @@ elif page == "专业数据分析":
         x = np.arange(len(study_metrics.index))
         bars = ax2_1.bar(x, study_metrics['每周学习时长（小时）'], color='#1f77b4', alpha=0.8)
         # X轴改为英文
-        ax2_1.set_xlabel('Major', fontsize=12, fontname='SimHei', color='#1f77b4')
-        ax2_1.set_ylabel('Study Time (hours)', fontsize=12, fontname='SimHei', color='#1f77b4')
+        ax2_1.set_xlabel('Major', fontsize=12, color='#1f77b4')
+        ax2_1.set_ylabel('Study Time (hours)', fontsize=12, color='#1f77b4')
         ax2_1.tick_params(axis='y', labelcolor='#1f77b4')
         ax2_2 = ax2_1.twinx()
         line1, = ax2_2.plot(x, study_metrics['期中考试分数'], marker='o', color='#ffaa00', linewidth=2)
         line2, = ax2_2.plot(x, study_metrics['期末考试分数'], marker='s', color='#2ca02c', linewidth=2)
-        ax2_2.set_ylabel('Score (points)', fontsize=12, fontname='SimHei', color='#333')
+        ax2_2.set_ylabel('Score (points)', fontsize=12, color='#333')
         ax2_2.tick_params(axis='y', labelcolor='#333')
         
-        # 设置图例字体
-        legend = ax2_1.legend([bars, line1, line2], 
+        # 设置图例
+        ax2_1.legend([bars, line1, line2], 
                     ['Average Study Time', 'Midterm Score', 'Final Score'],
                     loc='upper center', 
                     bbox_to_anchor=(0.5, 1.15),
                     ncol=3, 
                     fontsize=11,
                     frameon=False)
-        for text in legend.get_texts():
-            text.set_fontname('SimHei')
             
-        ax2_1.set_title('Study Time vs. Scores by Major', fontsize=14, fontname='SimHei')
+        ax2_1.set_title('Study Time vs. Scores by Major', fontsize=14)
         ax2_1.set_xticks(x)
         # X轴标签改为英文专业名称
-        ax2_1.set_xticklabels(english_majors, rotation=45, ha='right', fontname='SimHei')
+        ax2_1.set_xticklabels(english_majors, rotation=45, ha='right')
         st.pyplot(fig2)
     with col_table2:
         st.markdown("**学习指标详情**")
         study_table = study_metrics.reset_index()
         study_table.columns = ['专业', '平均学习时间（小时）', '期中平均分（分）', '期末平均分（分）']
+        # 表格保持中文
         st.dataframe(study_table, use_container_width=True)
     
     # 各专业出勤率分析
@@ -330,7 +331,7 @@ elif page == "专业数据分析":
         majors = attendance_percent.index.tolist()
         attendance_values = [int(value * 100) / 100.0 for value in attendance_percent]
         
-        # 获取英文专业名称
+        # 获取英文专业名称（仅用于图表）
         english_majors = [major_mapping.get(major, major) for major in majors]
         
         fig3, (ax3_1, ax3_2) = plt.subplots(2, 1, figsize=(10, 6), gridspec_kw={'height_ratios': [10, 1]})
@@ -345,18 +346,18 @@ elif page == "专业数据分析":
         bars = ax3_1.bar(x_positions, attendance_values, color='#4CAF50', alpha=0.7, edgecolor='#2E7D32', width=0.6)
         ax3_1.set_ylim(0, 100)
         # X轴改为英文
-        ax3_1.set_xlabel('Major', fontsize=12, fontname='SimHei')
-        ax3_1.set_ylabel('Average Attendance Rate (%)', fontsize=12, fontname='SimHei')
-        ax3_1.set_title('Average Attendance Rate by Major', fontsize=14, fontname='SimHei')
+        ax3_1.set_xlabel('Major', fontsize=12)
+        ax3_1.set_ylabel('Average Attendance Rate (%)', fontsize=12)
+        ax3_1.set_title('Average Attendance Rate by Major', fontsize=14)
         ax3_1.set_xticks(x_positions)
         # X轴标签改为英文专业名称
-        ax3_1.set_xticklabels(english_majors, rotation=45, ha='right', fontname='SimHei')
+        ax3_1.set_xticklabels(english_majors, rotation=45, ha='right')
         ax3_1.grid(axis='y', alpha=0.3)
         
         for i, bar in enumerate(bars):
             height = bar.get_height()
             ax3_1.text(bar.get_x() + bar.get_width()/2, height + 0.5, f"{attendance_values[i]:.2f}%",
-                      ha='center', va='bottom', fontsize=9, fontname='SimHei')
+                      ha='center', va='bottom', fontsize=9)
         
         colors = ['#9C27B0', '#2196F3', '#4CAF50', '#FFC107']
         cmap = LinearSegmentedColormap.from_list('attendance_cmap', colors, N=100)
@@ -364,10 +365,10 @@ elif page == "专业数据分析":
         ax3_2.imshow(gradient_bar, aspect='auto', cmap=cmap, extent=[0, 100, 0, 1])
         ax3_2.set_xlim(0, 100)
         ax3_2.set_xticks([0, 20, 40, 60, 80, 100])
-        ax3_2.set_xticklabels(['0%', '20%', '40%', '60%', '80%', '100%'], fontname='SimHei')
+        ax3_2.set_xticklabels(['0%', '20%', '40%', '60%', '80%', '100%'])
         ax3_2.set_yticks([])
-        ax3_2.set_xlabel('Attendance Rate Value', fontsize=9, fontname='SimHei')
-        ax3_2.set_title('Attendance Level Reference (Purple=Low, Yellow=High)', fontsize=10, pad=10, fontname='SimHei')
+        ax3_2.set_xlabel('Attendance Rate Value', fontsize=9)
+        ax3_2.set_title('Attendance Level Reference (Purple=Low, Yellow=High)', fontsize=10, pad=10)
         ax3_2.spines['top'].set_visible(False)
         ax3_2.spines['right'].set_visible(False)
         ax3_2.spines['bottom'].set_visible(True)
@@ -381,6 +382,7 @@ elif page == "专业数据分析":
         ranking_df = ranking_df.sort_values('平均出勤率', ascending=False)
         ranking_df['排名'] = range(1, len(ranking_df) + 1)
         ranking_df['平均出勤率'] = ranking_df['平均出勤率'].apply(lambda x: f"{x:.2f}%")
+        # 表格保持中文
         ranking_df = ranking_df[['排名', '专业', '平均出勤率']]
         st.dataframe(ranking_df, use_container_width=True)
     
@@ -414,11 +416,11 @@ elif page == "专业数据分析":
             bins = np.arange(60, 105, 5)
             ax4_1.hist(bigdata_df['期末考试分数'], bins=bins, color='#98FB98', alpha=0.7, edgecolor='#32CD32')
             # X轴改为英文
-            ax4_1.set_xlabel('Final Score (points)', fontsize=12, fontname='SimHei')
-            ax4_1.set_ylabel('Number of Students', fontsize=12, fontname='SimHei')
-            ax4_1.set_title('Final Score Distribution (60-100 points)', fontsize=14, fontname='SimHei')
+            ax4_1.set_xlabel('Final Score (points)', fontsize=12)
+            ax4_1.set_ylabel('Number of Students', fontsize=12)
+            ax4_1.set_title('Final Score Distribution (60-100 points)', fontsize=14)
             ax4_1.set_xticks(bins)
-            ax4_1.set_xticklabels([str(int(b)) for b in bins], fontname='SimHei')
+            ax4_1.set_xticklabels([str(int(b)) for b in bins])
             ax4_1.grid(axis='y', alpha=0.3)
             st.pyplot(fig4_1)
         
@@ -451,11 +453,11 @@ elif page == "专业数据分析":
                 flier.set(marker='o', color='#FF6347', alpha=0.7, markersize=6)
             
             ax4_2.set_ylim(50, 100)
-            ax4_2.set_ylabel('Final Score (points)', fontsize=12, fontname='SimHei')
-            ax4_2.set_title('Big Data Management Final Score Box Plot', fontsize=14, fontname='SimHei')
+            ax4_2.set_ylabel('Final Score (points)', fontsize=12)
+            ax4_2.set_title('Big Data Management Final Score Box Plot', fontsize=14)
             
             # X轴标签改为英文
-            ax4_2.set_xticklabels(['Big Data Management'], fontname='SimHei')
+            ax4_2.set_xticklabels(['Big Data Management'])
             
             ax4_2.grid(axis='y', alpha=0.3)
             plt.tight_layout()
