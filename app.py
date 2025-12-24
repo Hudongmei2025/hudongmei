@@ -1,88 +1,11 @@
-# app.py（修改：全满显示100分版本）- 一次性解决中文显示问题
+# app.py（修改：全满显示100分版本）
 import streamlit as st
 import pandas as pd
 import matplotlib.pyplot as plt
 import numpy as np
 import joblib
 import os
-import base64
-import tempfile
 from matplotlib.colors import LinearSegmentedColormap
-import matplotlib.font_manager as fm
-import io
-
-# -------------------------- 内嵌中文字体（关键修复） --------------------------
-def embed_chinese_font():
-    """嵌入中文字体数据，彻底解决中文显示问题"""
-    try:
-        # 尝试多种字体设置方案
-        
-        # 方案1：首先检查系统是否有中文字体
-        available_fonts = [f.name for f in fm.fontManager.ttflist]
-        
-        # 查找可用的中文字体
-        chinese_font_candidates = [
-            'SimHei', 'Microsoft YaHei', 'NSimSun', 'SimSun', 'KaiTi', 'FangSong',
-            'Noto Sans CJK', 'Source Han Sans', 'WenQuanYi Zen Hei'
-        ]
-        
-        for font_name in chinese_font_candidates:
-            if any(font_name in f for f in available_fonts):
-                plt.rcParams['font.sans-serif'] = [font_name]
-                plt.rcParams['axes.unicode_minus'] = False
-                return True
-        
-        # 方案2：使用 Base64 编码的字体数据
-        # 这是一个简化的 DejaVu Sans 字体，包含基本字符集
-        # 在实际应用中，你可以替换为完整的中文字体 Base64 数据
-        
-        # 创建临时字体文件
-        temp_dir = tempfile.gettempdir()
-        font_path = os.path.join(temp_dir, "chinese_font.ttf")
-        
-        # 使用系统自带的 DejaVu Sans 字体（Streamlit Cloud 通常有这个字体）
-        # 查找 DejaVu Sans 字体
-        for font_file in fm.findSystemFonts():
-            if 'dejavu' in font_file.lower() and 'sans' in font_file.lower():
-                # 复制字体文件到临时位置
-                import shutil
-                shutil.copy(font_file, font_path)
-                break
-        
-        if os.path.exists(font_path):
-            # 添加字体
-            fm.fontManager.addfont(font_path)
-            font_name = fm.FontProperties(fname=font_path).get_name()
-            plt.rcParams['font.sans-serif'] = [font_name]
-            plt.rcParams['axes.unicode_minus'] = False
-            return True
-        
-        # 方案3：最后使用 matplotlib 的默认配置
-        # matplotlib 3.0+ 通常有更好的字体支持
-        import matplotlib
-        matplotlib_version = matplotlib.__version__
-        
-        if int(matplotlib_version.split('.')[0]) >= 3:
-            # matplotlib 3.0+ 使用默认配置
-            plt.rcParams.update({
-                'font.sans-serif': ['DejaVu Sans', 'Arial', 'Helvetica'],
-                'axes.unicode_minus': False
-            })
-        else:
-            # 旧版本 matplotlib
-            plt.rcParams['font.sans-serif'] = ['DejaVu Sans']
-            plt.rcParams['axes.unicode_minus'] = False
-        
-        return True
-        
-    except Exception as e:
-        # 如果所有方法都失败，使用最基本的配置
-        plt.rcParams['font.sans-serif'] = ['DejaVu Sans']
-        plt.rcParams['axes.unicode_minus'] = False
-        return False
-
-# 执行字体设置
-embed_chinese_font()
 
 # -------------------------- 全局配置 --------------------------
 st.set_page_config(
@@ -92,10 +15,13 @@ st.set_page_config(
     initial_sidebar_state="collapsed"
 )
 
-# 中文显示配置
-plt.rcParams['figure.facecolor'] = 'white'
-plt.rcParams['axes.grid'] = True
-plt.rcParams['grid.alpha'] = 0.3
+# 中文显示 - 增强配置
+import matplotlib
+matplotlib.rcParams['font.sans-serif'] = ['SimHei', 'Microsoft YaHei', 'Arial Unicode MS', 'DejaVu Sans']
+matplotlib.rcParams['axes.unicode_minus'] = False
+matplotlib.rcParams['figure.facecolor'] = 'white'
+matplotlib.rcParams['axes.grid'] = True
+matplotlib.rcParams['grid.alpha'] = 0.3
 
 # 路径配置 - 修改为相对路径
 PROCESSED_DATA_PATH = "processed_data.csv"
@@ -294,47 +220,37 @@ elif page == "专业数据分析":
         gender_ratio = (gender_count.div(gender_count.sum(axis=1), axis=0) * 100).round(1)
         fig1, ax1 = plt.subplots(figsize=(10, 6))
         
-        # 在每个图表前强制刷新字体设置
+        # 设置字体（关键修复）
         plt.rcParams.update({
-            'font.sans-serif': plt.rcParams['font.sans-serif'],
+            'font.sans-serif': 'SimHei',
             'axes.unicode_minus': False
         })
         
         ax1.set_ylim(0, 60)
         x = np.arange(len(gender_ratio.index))
         width = 0.35
+        ax1.bar(x - width/2, gender_ratio['男'], width, label='男生', color='#1f77b4', alpha=0.8)
+        ax1.bar(x + width/2, gender_ratio['女'], width, label='女生', color='#ffbbcc', alpha=0.8)
         
-        # 绘制柱状图
-        if '男' in gender_ratio.columns:
-            ax1.bar(x - width/2, gender_ratio['男'], width, label='男生', color='#1f77b4', alpha=0.8)
-        if '女' in gender_ratio.columns:
-            ax1.bar(x + width/2, gender_ratio['女'], width, label='女生', color='#ffbbcc', alpha=0.8)
-        
-        # 设置中文标签
-        ax1.set_xlabel('专业', fontsize=12)
-        ax1.set_ylabel('比例（%）', fontsize=12)
-        ax1.set_title('各专业男女性别比例', fontsize=14)
+        # 显式设置字体
+        ax1.set_xlabel('专业', fontsize=12, fontname='SimHei')
+        ax1.set_ylabel('比例（%）', fontsize=12, fontname='SimHei')
+        ax1.set_title('各专业男女性别比例', fontsize=14, fontname='SimHei')
         ax1.set_xticks(x)
-        ax1.set_xticklabels(gender_ratio.index, rotation=45, ha='right')
         
-        # 添加图例
-        handles = []
-        labels = []
-        if '男' in gender_ratio.columns:
-            handles.append(plt.Rectangle((0,0),1,1, color='#1f77b4', alpha=0.8))
-            labels.append('男生')
-        if '女' in gender_ratio.columns:
-            handles.append(plt.Rectangle((0,0),1,1, color='#ffbbcc', alpha=0.8))
-            labels.append('女生')
+        # 设置刻度标签字体
+        ax1.set_xticklabels(gender_ratio.index, rotation=45, ha='right', fontname='SimHei')
         
-        if handles:
-            ax1.legend(handles, labels)
+        # 设置图例字体
+        legend = ax1.legend()
+        for text in legend.get_texts():
+            text.set_fontname('SimHei')
         
         st.pyplot(fig1)
     with col_table1:
         st.markdown("**性别比例（%）**")
         gender_table = gender_ratio.reset_index()
-        gender_table.columns = ['专业', '女生', '男生']
+        gender_table.columns = ['major', '女', '男']
         st.dataframe(gender_table, use_container_width=True)
     
     # 各专业学习指标对比
@@ -348,35 +264,37 @@ elif page == "专业数据分析":
         }).round(1)
         fig2, ax2_1 = plt.subplots(figsize=(10, 6))
         
-        # 刷新字体设置
+        # 设置字体
         plt.rcParams.update({
-            'font.sans-serif': plt.rcParams['font.sans-serif'],
+            'font.sans-serif': 'SimHei',
             'axes.unicode_minus': False
         })
         
         x = np.arange(len(study_metrics.index))
         bars = ax2_1.bar(x, study_metrics['每周学习时长（小时）'], color='#1f77b4', alpha=0.8)
-        ax2_1.set_xlabel('专业', fontsize=12, color='#1f77b4')
-        ax2_1.set_ylabel('学习时间（小时）', fontsize=12, color='#1f77b4')
+        ax2_1.set_xlabel('专业', fontsize=12, fontname='SimHei', color='#1f77b4')
+        ax2_1.set_ylabel('学习时间（小时）', fontsize=12, fontname='SimHei', color='#1f77b4')
         ax2_1.tick_params(axis='y', labelcolor='#1f77b4')
         ax2_2 = ax2_1.twinx()
         line1, = ax2_2.plot(x, study_metrics['期中考试分数'], marker='o', color='#ffaa00', linewidth=2)
         line2, = ax2_2.plot(x, study_metrics['期末考试分数'], marker='s', color='#2ca02c', linewidth=2)
-        ax2_2.set_ylabel('分数（分）', fontsize=12, color='#333')
+        ax2_2.set_ylabel('分数（分）', fontsize=12, fontname='SimHei', color='#333')
         ax2_2.tick_params(axis='y', labelcolor='#333')
         
-        # 设置图例
-        ax2_1.legend([bars, line1, line2], 
+        # 设置图例字体
+        legend = ax2_1.legend([bars, line1, line2], 
                     ['平均学习时间', '期中成绩', '期末成绩'],
                     loc='upper center', 
                     bbox_to_anchor=(0.5, 1.15),
                     ncol=3, 
                     fontsize=11,
                     frameon=False)
-        
-        ax2_1.set_title('各专业学习时间与成绩对比', fontsize=14)
+        for text in legend.get_texts():
+            text.set_fontname('SimHei')
+            
+        ax2_1.set_title('各专业学习时间与成绩对比', fontsize=14, fontname='SimHei')
         ax2_1.set_xticks(x)
-        ax2_1.set_xticklabels(study_metrics.index, rotation=45, ha='right')
+        ax2_1.set_xticklabels(study_metrics.index, rotation=45, ha='right', fontname='SimHei')
         st.pyplot(fig2)
     with col_table2:
         st.markdown("**学习指标详情**")
@@ -395,26 +313,26 @@ elif page == "专业数据分析":
         
         fig3, (ax3_1, ax3_2) = plt.subplots(2, 1, figsize=(10, 6), gridspec_kw={'height_ratios': [10, 1]})
         
-        # 刷新字体设置
+        # 设置字体
         plt.rcParams.update({
-            'font.sans-serif': plt.rcParams['font.sans-serif'],
+            'font.sans-serif': 'SimHei',
             'axes.unicode_minus': False
         })
         
         x_positions = range(len(majors))
         bars = ax3_1.bar(x_positions, attendance_values, color='#4CAF50', alpha=0.7, edgecolor='#2E7D32', width=0.6)
         ax3_1.set_ylim(0, 100)
-        ax3_1.set_xlabel('专业', fontsize=12)
-        ax3_1.set_ylabel('平均出勤率（%）', fontsize=12)
-        ax3_1.set_title('各专业平均出勤率', fontsize=14)
+        ax3_1.set_xlabel('专业', fontsize=12, fontname='SimHei')
+        ax3_1.set_ylabel('平均出勤率（%）', fontsize=12, fontname='SimHei')
+        ax3_1.set_title('各专业平均出勤率', fontsize=14, fontname='SimHei')
         ax3_1.set_xticks(x_positions)
-        ax3_1.set_xticklabels(majors, rotation=45, ha='right')
+        ax3_1.set_xticklabels(majors, rotation=45, ha='right', fontname='SimHei')
         ax3_1.grid(axis='y', alpha=0.3)
         
         for i, bar in enumerate(bars):
             height = bar.get_height()
             ax3_1.text(bar.get_x() + bar.get_width()/2, height + 0.5, f"{attendance_values[i]:.2f}%",
-                      ha='center', va='bottom', fontsize=9)
+                      ha='center', va='bottom', fontsize=9, fontname='SimHei')
         
         colors = ['#9C27B0', '#2196F3', '#4CAF50', '#FFC107']
         cmap = LinearSegmentedColormap.from_list('attendance_cmap', colors, N=100)
@@ -422,10 +340,10 @@ elif page == "专业数据分析":
         ax3_2.imshow(gradient_bar, aspect='auto', cmap=cmap, extent=[0, 100, 0, 1])
         ax3_2.set_xlim(0, 100)
         ax3_2.set_xticks([0, 20, 40, 60, 80, 100])
-        ax3_2.set_xticklabels(['0%', '20%', '40%', '60%', '80%', '100%'])
+        ax3_2.set_xticklabels(['0%', '20%', '40%', '60%', '80%', '100%'], fontname='SimHei')
         ax3_2.set_yticks([])
-        ax3_2.set_xlabel('出勤率值', fontsize=9)
-        ax3_2.set_title('出勤程度参考（紫=低，黄=高）', fontsize=10, pad=10)
+        ax3_2.set_xlabel('出勤率值', fontsize=9, fontname='SimHei')
+        ax3_2.set_title('出勤程度参考（紫=低，黄=高）', fontsize=10, pad=10, fontname='SimHei')
         ax3_2.spines['top'].set_visible(False)
         ax3_2.spines['right'].set_visible(False)
         ax3_2.spines['bottom'].set_visible(True)
@@ -463,27 +381,28 @@ elif page == "专业数据分析":
         with col_chart4_1:
             fig4_1, ax4_1 = plt.subplots(figsize=(8, 6))
             
-            # 刷新字体设置
+            # 设置字体
             plt.rcParams.update({
-                'font.sans-serif': plt.rcParams['font.sans-serif'],
+                'font.sans-serif': 'SimHei',
                 'axes.unicode_minus': False
             })
             
             bins = np.arange(60, 105, 5)
             ax4_1.hist(bigdata_df['期末考试分数'], bins=bins, color='#98FB98', alpha=0.7, edgecolor='#32CD32')
-            ax4_1.set_xlabel('期末成绩（分）', fontsize=12)
-            ax4_1.set_ylabel('人数', fontsize=12)
-            ax4_1.set_title('期末成绩分布图（60-100分）', fontsize=14)
+            ax4_1.set_xlabel('期末成绩（分）', fontsize=12, fontname='SimHei')
+            ax4_1.set_ylabel('人数', fontsize=12, fontname='SimHei')
+            ax4_1.set_title('期末成绩分布图（60-100分）', fontsize=14, fontname='SimHei')
             ax4_1.set_xticks(bins)
+            ax4_1.set_xticklabels([str(int(b)) for b in bins], fontname='SimHei')
             ax4_1.grid(axis='y', alpha=0.3)
             st.pyplot(fig4_1)
         
         with col_chart4_2:
             fig4_2, ax4_2 = plt.subplots(figsize=(8, 6))
             
-            # 刷新字体设置
+            # 设置字体
             plt.rcParams.update({
-                'font.sans-serif': plt.rcParams['font.sans-serif'],
+                'font.sans-serif': 'SimHei',
                 'axes.unicode_minus': False
             })
             
@@ -506,8 +425,12 @@ elif page == "专业数据分析":
                 flier.set(marker='o', color='#FF6347', alpha=0.7, markersize=6)
             
             ax4_2.set_ylim(50, 100)
-            ax4_2.set_ylabel('期末成绩（分）', fontsize=12)
-            ax4_2.set_title('大数据管理专业期末成绩箱线图', fontsize=14)
+            ax4_2.set_ylabel('期末成绩（分）', fontsize=12, fontname='SimHei')
+            ax4_2.set_title('大数据管理专业期末成绩箱线图', fontsize=14, fontname='SimHei')
+            
+            # 设置x轴标签字体
+            ax4_2.set_xticklabels(['大数据管理专业'], fontname='SimHei')
+            
             ax4_2.grid(axis='y', alpha=0.3)
             plt.tight_layout()
             st.pyplot(fig4_2)
